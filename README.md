@@ -1,8 +1,12 @@
-# 🎯 Support Ticket Classifier Agent
+# Google ADK Hackathon — AI Agents Suite
 
-An AI-powered support ticket classification and routing agent built with **Google ADK**, **Gemini 2.5 Flash**, **FastAPI**, and deployed on **Google Cloud Run**.
+Two AI agent systems built with **Google ADK**, **Gemini 2.5 Flash**, **FastAPI**, and **Google Cloud Run**.
 
-## What It Does
+---
+
+## Project 1: Support Ticket Classifier Agent
+
+An AI-powered support ticket classification and routing agent.
 
 Send a raw customer support message → get back:
 - **Category** (Billing, Technical, General, Refund, Account)
@@ -14,18 +18,51 @@ Send a raw customer support message → get back:
 
 ---
 
+## Project 2: Multi-Agent Productivity Assistant
+
+A multi-agent AI system with a primary orchestrator coordinating three specialist sub-agents to help users manage tasks, schedules, and notes.
+
+### Architecture
+
+```
+Orchestrator Agent (primary)
+├── Task Manager Agent  → create/list/update/complete/delete tasks
+├── Calendar Agent      → schedule/list/update/delete events
+└── Notes Agent         → create/search/update/delete notes with tags
+```
+
+All agents are backed by **SQLite** for persistent structured data storage and expose tools via both native **ADK FunctionTools** and an **MCP server**.
+
+---
+
 ## Project Structure
 
 ```
 support-agent/
-├── agent/
-│   ├── __init__.py       # Exports root_agent
-│   └── agent.py          # ADK LlmAgent definition
-├── main.py               # FastAPI HTTP server
+├── agent/                          # Project 1 — ticket classifier
+│   ├── __init__.py
+│   └── agent.py
+├── productivity/                   # Project 2 — multi-agent assistant
+│   ├── agents/
+│   │   ├── orchestrator.py         # Primary coordinator (sub_agents=[...])
+│   │   ├── task_agent.py           # Task sub-agent + FunctionTools
+│   │   ├── calendar_agent.py       # Calendar sub-agent + FunctionTools
+│   │   └── notes_agent.py          # Notes sub-agent + FunctionTools
+│   ├── tools/
+│   │   ├── task_tools.py           # Task CRUD functions
+│   │   ├── calendar_tools.py       # Calendar CRUD functions
+│   │   └── notes_tools.py          # Notes CRUD functions
+│   ├── db/
+│   │   └── database.py             # SQLite setup (tasks, events, notes)
+│   └── mcp_server.py               # MCP tool server (stdio)
+├── main.py                         # Project 1 FastAPI server (port 8080)
+├── productivity_main.py            # Project 2 FastAPI server (port 8081)
+├── index.html                      # Project 1 frontend
+├── productivity_frontend.html      # Project 2 chat frontend
+├── Dockerfile                      # Project 1 container
+├── Dockerfile.productivity         # Project 2 container
 ├── requirements.txt
-├── Dockerfile
-├── .env.example
-└── README.md
+└── .env.example
 ```
 
 ---
@@ -191,9 +228,79 @@ curl -X POST $SERVICE_URL/classify \
 
 ---
 
+---
+
+## Productivity Assistant — Local Development
+
+### Run locally
+
+```bash
+uvicorn productivity_main:app --reload --port 8081
+```
+
+Visit: http://localhost:8081 for the chat UI, http://localhost:8081/docs for Swagger.
+
+### Test multi-agent chat
+
+```bash
+# Add a task
+curl -X POST http://localhost:8081/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Add a high priority task to prepare demo slides by 2026-04-10"}'
+
+# Schedule an event
+curl -X POST http://localhost:8081/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Schedule a team standup on 2026-04-01 at 10:00 AM in Meeting Room A"}'
+
+# Multi-step workflow
+curl -X POST http://localhost:8081/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Schedule a product review for tomorrow at 3pm and create a follow-up task to send the meeting notes"}'
+```
+
+### Productivity API Endpoints
+
+| Method | Endpoint    | Description                        |
+|--------|-------------|------------------------------------|
+| GET    | `/`         | Chat frontend UI                   |
+| GET    | `/health`   | Health check                       |
+| POST   | `/chat`     | Send a message to the orchestrator |
+| GET    | `/tasks`    | List all tasks                     |
+| GET    | `/events`   | List all events                    |
+| GET    | `/notes`    | List all notes                     |
+| GET    | `/docs`     | Swagger UI                         |
+
+### Deploy Productivity Agent to Cloud Run
+
+```bash
+PROJECT_ID=$(gcloud config get-value project)
+REGION=us-central1
+SERVICE_NAME=productivity-agent
+
+gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVICE_NAME \
+  --config cloudbuild.yaml || \
+  gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVICE_NAME \
+  --dockerfile Dockerfile.productivity
+
+gcloud run deploy $SERVICE_NAME \
+  --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
+  --platform managed \
+  --region $REGION \
+  --allow-unauthenticated \
+  --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=$REGION,GOOGLE_GENAI_USE_VERTEXAI=TRUE \
+  --memory 1Gi \
+  --cpu 1 \
+  --timeout 120
+```
+
+---
+
 ## Built With
 
-- [Google ADK](https://github.com/google/adk-python) — Agent Development Kit
-- [Gemini 2.5 Flash](https://deepmind.google/technologies/gemini/) — LLM inference
-- [FastAPI](https://fastapi.tiangolo.com/) — HTTP server
+- [Google ADK](https://github.com/google/adk-python) — Agent Development Kit (LlmAgent, sub_agents, FunctionTool, MCPToolset)
+- [Gemini 2.5 Flash](https://deepmind.google/technologies/gemini/) — LLM inference via Vertex AI
+- [FastAPI](https://fastapi.tiangolo.com/) — HTTP API server
 - [Google Cloud Run](https://cloud.google.com/run) — Serverless deployment
+- [SQLite](https://www.sqlite.org/) — Structured data persistence
+- [MCP](https://modelcontextprotocol.io/) — Model Context Protocol tool server
