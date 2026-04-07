@@ -2,6 +2,13 @@
 
 Two AI agent systems built with **Google ADK**, **Gemini 2.5 Flash**, **FastAPI**, and **Google Cloud Run**.
 
+## Live Deployments
+
+| Project | Frontend (Netlify) | Backend API (Cloud Run) |
+|---|---|---|
+| Support Ticket Classifier | — | https://support-ticket-agent-741144778351.us-central1.run.app |
+| Multi-Agent Productivity Assistant | **https://multi-agent-productivity-assistant.netlify.app** | https://productivity-agent-741144778351.us-central1.run.app |
+
 ---
 
 ## Project 1: Support Ticket Classifier Agent
